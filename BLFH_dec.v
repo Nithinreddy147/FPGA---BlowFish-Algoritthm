@@ -3,9 +3,9 @@
 // Company: 
 // Engineer: 
 // 
-// Create Date: 22.04.2024 01:12:51
+// Create Date: 25.04.2024 14:02:09
 // Design Name: 
-// Module Name: BLFH
+// Module Name: BLFH_dec
 // Project Name: 
 // Target Devices: 
 // Tool Versions: 
@@ -20,10 +20,10 @@
 //////////////////////////////////////////////////////////////////////////////////
 
 
-module blowfish_encrypt (
-  input [31:0] key,             // Input secret key (32 bits)
-  input [63:0] plaintext,       // Input data to be encrypted (64 bits)
-  output reg [63:0] ciphertext  // Encrypted output data (64 bits)
+module blowfish_decrypt (
+  input [31:0] key,          // Input secret key (32 bits)
+  input [63:0] dec_ciphertext, // Input data to be decrypted (64 bits)
+  output reg [63:0] decryptedtext // Decrypted output data (64 bits)
 );
 
   // P-array to store pre-processing key data (18 x 32 bits)
@@ -31,7 +31,6 @@ module blowfish_encrypt (
 
   // Temporary variables to hold left and right halves of data (32 bits each)
   reg [31:0] L, R;
-
 
   reg [7:0] b0, b1, b2, b3;
   integer i, b0_dec, b1_dec, b2_dec, b3_dec;
@@ -43,7 +42,7 @@ module blowfish_encrypt (
   reg [31:0] S2 [255:0];
   reg [31:0] S3 [255:0];
 
-  // Initializing P-array with pre-defined constant values during startup 
+  // Initializing P-array with pre-defined constant values during startup
   initial begin
     P[0]  = 32'h243f6a88;
     P[1]  = 32'h85a308d3;
@@ -73,20 +72,20 @@ module blowfish_encrypt (
     $readmemh("sbox4.txt", S3);
   end
 
-  // Main encryption loop with 16 rounds
-  always @(*) begin
-    // Xor each element in P-array with the key for enhanced security
+  // Main decryption loop with 16 rounds (order reversed compared to encryption)
+  always @(dec_ciphertext) begin
+    // Xor each element in P-array with the key for enhanced security (same as encryption)
     for (i = 0; i < 18; i = i + 1) begin
       P[i] = P[i] ^ key;
     end
 
-    // Splitting plaintext into left and right halves
-    L = plaintext[63:32];
-    R = plaintext[31:0];
+    // Splitting ciphertext into left and right halves
+    L = dec_ciphertext[63:32];
+    R = dec_ciphertext[31:0];
 
-    // Perform 16 rounds of encryption
-    for (i = 0; i < 16; i = i + 1) begin
-      // Xor left half with current subkey from P-array
+    // Perform 16 rounds of decryption (order reversed compared to encryption)
+    for (i = 17; i > 1; i = i - 1) begin  // Decryption starts from the last round (i = 17)
+      // Xor left half with current subkey from P-array (order reversed compared to encryption)
       L = L ^ P[i];
 
       // Splitting left half (L) into individual bytes for S-box lookup
@@ -110,25 +109,24 @@ module blowfish_encrypt (
       // Perform non-linear mixing with S-box outputs
       res = sb0 ^ sb1 ^ sb2 ^ sb3;
 
-      // Xor right half with the result
+      // Xor right half with the result for confusion (order reversed compared to encryption)
       R = R ^ res;
 
-      // Swap left and right halves for Feistel network (rounds 1 to 15)
+      // Swap left and right halves for Feistel network (rounds 14 to 2)
       {L, R} = {R, L};
     end
 
     // Swap left and right halves back after the final round (no further swapping needed)
     {L, R} = {R, L};
 
-    // Xor each half with final subkeys from P-array
-    L = L ^ P[17];
-    R = R ^ P[16];
+    // Xor each half with final subkeys from P-array (order reversed compared to encryption)
+    L = L ^ P[0];
+    R = R ^ P[1];
 
-    // Combine left and right halves to form the final ciphertext
-    ciphertext = {L, R};
+    // Combine left and right halves to form the final decrypted text
+    decryptedtext = {L, R};
 
-    // Display the encrypted data for debugging purposes
-    $display("ciphertext:%h", ciphertext);
+    // Display the decrypted data for debugging purposes (can be removed)
+    $display("decryptedtext:%h", decryptedtext);
   end
 endmodule
-
